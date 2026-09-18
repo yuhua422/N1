@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>雲端夢幻轉盤抽籤系統</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter & Noto Sans TC Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', 'Outfit', sans-serif; }
+        
+        @keyframes slotSpin {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { opacity: 0.6; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+        .slot-animation {
+            animation: slotSpin 0.3s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+
+        @keyframes pastelGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(244, 114, 182, 0.3); }
+            50% { box-shadow: 0 0 35px rgba(168, 85, 247, 0.4); }
+        }
+        .pastel-border-glow {
+            animation: pastelGlow 3s infinite ease-in-out;
+        }
+
+        /* 夢幻漸層玻璃擬態視窗 */
+        .slot-window {
+            background: linear-gradient(135deg, rgba(255, 241, 242, 0.95), rgba(250, 232, 255, 0.98));
+            box-shadow: inset 0 2px 10px rgba(255, 255, 255, 0.8), 0 10px 30px rgba(236, 72, 153, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-pink-50 via-purple-50 to-sky-50 min-h-screen text-slate-700 flex flex-col justify-between selection:bg-pink-300 selection:text-pink-900">
+
+    <header class="bg-white/80 backdrop-blur-xl shadow-sm border-b border-pink-100 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-pink-400 via-purple-400 to-sky-400 text-white p-2.5 rounded-2xl shadow-md shadow-pink-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 font-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 bg-clip-text text-transparent">雲端夢幻轉盤抽籤</h1>
+                    <p class="text-xs text-pink-400 font-medium">項目指定人數 • 不重複中獎 • 雲端即時記憶</p>
+                </div>
+            </div>
+            <div id="auth-status" class="text-xs px-3.5 py-1.5 bg-pink-50/80 border border-pink-200 rounded-full text-pink-600 font-medium flex items-center gap-2 shadow-sm">
+                <span class="w-2.5 h-2.5 rounded-full bg-pink-400 animate-pulse"></span>
+                雲端初始化中...
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-8 flex-grow w-full">
+        
+        <!-- 左側：設定與清單管理 -->
+        <div class="lg:col-span-1 space-y-6">
+            
+            <!-- 抽籤群組 (組合) 管理 -->
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-pink-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                        抽籤群組組合
+                    </h2>
+                    <button onclick="openNewGroupModal()" class="text-xs bg-pink-100 hover:bg-pink-200 text-pink-600 font-bold px-3 py-1.5 rounded-xl transition shadow-sm">
+                        + 新增組合
+                    </button>
+                </div>
+                
+                <div id="groups-list" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <!-- 動態載入 -->
+                </div>
+            </div>
+
+            <!-- 抽籤人名管理 -->
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-pink-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        參與者名單
+                    </h2>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex gap-2">
+                        <input type="text" id="new-participant-input" placeholder="輸入人名 (支援多行或逗號)" class="flex-grow bg-slate-50 border border-pink-200 rounded-xl px-3.5 py-2 text-sm text-slate-700 focus:outline-none focus:border-pink-400 focus:bg-white transition">
+                        <button onclick="addParticipant()" class="bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md shadow-pink-200">
+                            新增
+                        </button>
+                    </div>
+                    <div class="flex justify-between items-center text-xs text-slate-400 px-1">
+                        <span id="participant-count">已儲存 0 位</span>
+                        <button onclick="clearParticipants()" class="hover:text-pink-500 transition">清空全部</button>
+                    </div>
+                    <div id="participants-container" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
+                        <!-- 動態載入 -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 右側：抽籤轉盤舞台與群組預覽 -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <!-- 目前組合預覽與抽獎按鈕 -->
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-pink-100 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span class="text-xs uppercase tracking-wider text-pink-500 font-bold bg-pink-100/80 px-3 py-1 rounded-full">目前抽籤主題 (不重複中獎)</span>
+                            <h2 id="current-group-title" class="text-2xl font-black text-slate-800 mt-2">載入中...</h2>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editCurrentGroup()" class="p-2.5 text-slate-400 hover:text-pink-500 transition bg-slate-50 hover:bg-pink-50 rounded-xl border border-slate-200" title="編輯組合">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button onclick="deleteCurrentGroup()" class="p-2.5 text-slate-400 hover:text-red-400 transition bg-slate-50 hover:bg-red-50 rounded-xl border border-slate-200" title="刪除組合">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 項目預覽 (含每項抽獎人數顯示) -->
+                    <div class="bg-gradient-to-r from-pink-50/50 to-purple-50/50 border border-pink-100 rounded-2xl p-4 mb-6">
+                        <p class="text-xs font-semibold text-slate-500 mb-2">此組合包含的抽籤項目與各項名額（<span id="items-count">0</span> 項）：</p>
+                        <div id="current-items-container" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+                            <!-- 項目標籤 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 抽獎按鈕 (每次固定抽取一個項目，已中獎者不重複) -->
+                <div class="border-t border-slate-100 pt-6">
+                    <button onclick="startDraw()" id="draw-btn" class="w-full bg-gradient-to-r from-pink-400 via-purple-400 to-indigo-400 hover:from-pink-500 hover:to-indigo-500 text-white font-black py-4 rounded-2xl shadow-xl shadow-pink-200 transition transform active:scale-[0.98] flex items-center justify-center gap-3 text-lg tracking-wider">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        開始夢幻轉盤抽籤 (抽取下一個項目)
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- 粉嫩轉輪舞台 & 完整結果顯示面板 -->
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl border border-pink-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        轉盤抽籤結果中心
+                    </h3>
+                    <div class="flex gap-2 items-center">
+                        <button onclick="exportResults()" id="export-btn" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold px-3 py-1.5 rounded-xl transition hidden flex items-center gap-1.5 shadow-sm">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                            </svg>
+                            輸出結果
+                        </button>
+                        <button onclick="clearHistory()" class="text-xs text-slate-400 hover:text-red-400 transition px-2 py-1.5 font-medium">清空目前</button>
+                    </div>
+                </div>
+                
+                <!-- 轉輪主視覺舞台 (同時清晰顯示獎項名稱與抽中人名，無晃動字體設計) -->
+                <div id="slot-spinner-stage" class="slot-window rounded-2xl p-6 mb-4 text-center border border-pink-200 pastel-border-glow min-h-[150px] flex flex-col items-center justify-center relative overflow-hidden">
+                    <div id="spinner-item-text" class="text-lg font-bold text-pink-500 tracking-wide mb-1">準備就緒</div>
+                    <div id="spinner-name-text" class="text-2xl sm:text-3xl font-black tracking-wider text-purple-700 drop-shadow-[0_2px_8px_rgba(168,85,247,0.2)]">
+                        ✨ 點擊按鈕開始轉動 ✨
+                    </div>
+                    <div class="text-xs text-purple-400 mt-2 font-medium">夢幻轉盤運轉中 (不重複中獎)</div>
+                </div>
+
+                <!-- 雲端已儲存歷史紀錄導覽區 -->
+                <div class="mb-4 bg-pink-50/40 border border-pink-100 rounded-2xl p-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-pink-600 flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            雲端自動儲存歷史紀錄 (可手動刪除)
+                        </span>
+                        <span id="cloud-history-count" class="text-[11px] text-slate-400">0 筆紀錄</span>
+                    </div>
+                    <div id="cloud-history-container" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+                        <div class="text-xs text-slate-400 text-center py-2">尚無雲端儲存的紀錄</div>
+                    </div>
+                </div>
+
+                <div id="result-container" class="space-y-3 min-h-[120px] flex flex-col justify-center items-center text-slate-400 text-sm">
+                    <p>尚無本輪開獎紀錄，請點擊上方按鈕開始！</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <div id="group-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white border border-pink-100 rounded-3xl max-w-lg w-full p-6 shadow-2xl">
+            <h3 id="modal-title" class="text-xl font-bold text-slate-800 mb-4">新增抽籤組合</h3>
+            <input type="hidden" id="modal-group-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">組合名稱 (例如：班級幹部指派、尾牙大獎)</label>
+                    <input type="text" id="group-name-input" class="w-full bg-slate-50 border border-pink-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-pink-400" placeholder="請輸入標題...">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">抽籤項目與每項人數</label>
+                    <p class="text-[11px] text-slate-400 mb-2">格式：項目名稱 (人數)，例如：<br>班長 (1)<br>作業長 (1)<br>風紀股長 (2)<br>（若未填寫括號人數，系統將預設為 1 人）</p>
+                    <textarea id="group-items-input" rows="6" class="w-full bg-slate-50 border border-pink-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-pink-400 font-mono" placeholder="班長 (1)&#10;風紀股長 (1)&#10;衛生股長 (1)"></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button onclick="closeGroupModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-500 hover:bg-slate-100 transition">取消</button>
+                    <button onclick="saveGroup()" class="px-6 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-pink-400 to-purple-400 text-white hover:from-pink-500 hover:to-purple-500 transition shadow-md shadow-pink-200 font-bold">儲存組合</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂訊息對話框 -->
+    <div id="msg-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white border border-pink-100 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+            <div id="msg-icon" class="w-12 h-12 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold border border-pink-200">!</div>
+            <h4 id="msg-title" class="text-lg font-bold text-slate-800 mb-2">提示</h4>
+            <p id="msg-content" class="text-sm text-slate-600 mb-6">內容訊息</p>
+            <button onclick="closeMsgModal()" class="w-full bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-2.5 rounded-xl transition shadow-md shadow-pink-200">確定</button>
+        </div>
+    </div>
+
+    <!-- 輸出結果彈跳視窗 -->
+    <div id="export-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white border border-pink-100 rounded-3xl max-w-md w-full p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-800">輸出抽籤結果</h3>
+                <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-700 font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500 mb-2">您可以複製以下文字分享給其他人：</p>
+            <textarea id="export-text-area" rows="6" readonly class="w-full bg-slate-50 border border-pink-200 rounded-xl p-3 text-xs font-mono text-purple-700 focus:outline-none mb-4"></textarea>
+            <div class="flex gap-3">
+                <button onclick="closeExportModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 rounded-xl transition text-sm">關閉</button>
+                <button onclick="copyExportText()" class="flex-1 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white font-bold py-2.5 rounded-xl transition text-sm shadow-md shadow-pink-200">複製到剪貼簿</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'draw-app-default';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : JSON.stringify({
+            apiKey: "AIzaSyASeGu5IADzRlsj4i_vu28DYKJwxhDecGE",
+            authDomain: "read-4a507.firebaseapp.com",
+            projectId: "read-4a507",
+            storageBucket: "read-4a507.firebasestorage.app",
+            messagingSenderId: "813271089720",
+            appId: "1:813271089720:web:d77c81018ce465c28a1ccd",
+            measurementId: "G-Y96NQT1244"
+        }));
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null;
+        let groupsData = [];
+        let participantsData = [];
+        let historyData = [];
+        let currentGroupId = null;
+        let latestResults = [];
+
+        window.showAlert = function(title, content) {
+            document.getElementById('msg-title').innerText = title;
+            document.getElementById('msg-content').innerText = content;
+            document.getElementById('msg-modal').classList.remove('hidden');
+        }
+        window.closeMsgModal = function() {
+            document.getElementById('msg-modal').classList.add('hidden');
+        }
+
+        window.exportResults = function() {
+            if (!latestResults || latestResults.length === 0) return;
+            const group = groupsData.find(g => g.id === currentGroupId);
+            const groupName = group ? group.name : '抽籤活動';
+            
+            let text = `🌸 【${groupName}】 夢幻轉盤抽籤結果 (不重複) 🌸\n`;
+            text += `時間：${new Date().toLocaleString()}\n`;
+            text += `------------------------------------\n`;
+            latestResults.forEach((res, idx) => {
+                text += `${idx + 1}. 項目：${res.item} ➔ 獲得者：${res.names.join(', ')}\n`;
+            });
+            text += `------------------------------------`;
+
+            document.getElementById('export-text-area').value = text;
+            document.getElementById('export-modal').classList.remove('hidden');
+        }
+
+        window.closeExportModal = function() {
+            document.getElementById('export-modal').classList.add('hidden');
+        }
+
+        window.copyExportText = function() {
+            const textarea = document.getElementById('export-text-area');
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                window.showAlert('成功', '已成功複製抽籤結果至剪貼簿！');
+                closeExportModal();
+            } catch (err) {
+                window.showAlert('錯誤', '複製失敗，請手動複製。');
+            }
+        }
+
+        async function initAuth() {
+            const authStatusEl = document.getElementById('auth-status');
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+                
+                if (currentUser) {
+                    authStatusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> 雲端跨裝置同步已連線`;
+                    loadUserData();
+                } else {
+                    throw new Error("Authentication failed to establish user.");
+                }
+            } catch (error) {
+                console.error("Auth error:", error);
+                authStatusEl.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-red-400"></span> 雲端連線異常`;
+            }
+        }
+
+        function loadUserData() {
+            if (!currentUser) return;
+            
+            const groupsRef = collection(db, 'artifacts', appId, 'public', 'data', 'draw_groups');
+            onSnapshot(groupsRef, async (snapshot) => {
+                groupsData = [];
+                snapshot.forEach((docSnap) => {
+                    groupsData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                if (groupsData.length === 0) {
+                    await createDefaultGroup();
+                } else {
+                    if (!currentGroupId || !groupsData.find(g => g.id === currentGroupId)) {
+                        currentGroupId = groupsData[0].id;
+                    }
+                    renderGroupsList();
+                    updateCurrentGroupView();
+                }
+            }, (error) => {
+                console.error("Groups snapshot error:", error);
+            });
+
+            const participantsRef = collection(db, 'artifacts', appId, 'public', 'data', 'draw_participants');
+            onSnapshot(participantsRef, async (snapshot) => {
+                participantsData = [];
+                snapshot.forEach((docSnap) => {
+                    participantsData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                if (participantsData.length === 0) {
+                    await createDefaultParticipants();
+                } else {
+                    renderParticipantsList();
+                }
+            }, (error) => {
+                console.error("Participants snapshot error:", error);
+            });
+
+            const historyRef = collection(db, 'artifacts', appId, 'public', 'data', 'draw_history');
+            onSnapshot(historyRef, (snapshot) => {
+                historyData = [];
+                snapshot.forEach((docSnap) => {
+                    historyData.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderCloudHistory();
+            }, (error) => {
+                console.error("History snapshot error:", error);
+            });
+        }
+
+        async function createDefaultGroup() {
+            if (!currentUser) return;
+            const defaultGroups = [
+                { 
+                    name: "班級幹部指派", 
+                    items: [
+                        { name: "班長", count: 1 },
+                        { name: "風紀股長", count: 1 },
+                        { name: "衛生股長", count: 1 },
+                        { name: "作業長", count: 1 }
+                    ] 
+                }
+            ];
+            for (let g of defaultGroups) {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'draw_groups'), g);
+            }
+        }
+
+        async function createDefaultParticipants() {
+            if (!currentUser) return;
+            const defaultNames = ["盧泳全", "小美", "大明", "志明", "春嬌", "皮卡丘", "庫洛米", "大耳狗"];
+            for (let name of defaultNames) {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'draw_participants'), { name });
+            }
+        }
+
+        function renderGroupsList() {
+            const container = document.getElementById('groups-list');
+            container.innerHTML = '';
+            
+            groupsData.forEach(group => {
+                const isSelected = group.id === currentGroupId;
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-2xl cursor-pointer transition flex justify-between items-center border ${isSelected ? 'bg-pink-50 border-pink-300 text-pink-600 font-bold shadow-sm' : 'bg-slate-50/60 border-slate-200/80 text-slate-600 hover:bg-slate-100'}`;
+                div.innerHTML = `
+                    <span class="truncate text-sm">${group.name}</span>
+                    <span class="text-xs bg-white px-2 py-0.5 rounded-lg border border-pink-100 text-slate-400">${group.items ? group.items.length : 0}項</span>
+                `;
+                div.onclick = () => {
+                    currentGroupId = group.id;
+                    renderGroupsList();
+                    updateCurrentGroupView();
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function updateCurrentGroupView() {
+            const group = groupsData.find(g => g.id === currentGroupId);
+            if (!group) return;
+
+            document.getElementById('current-group-title').innerText = group.name;
+            document.getElementById('items-count').innerText = group.items ? group.items.length : 0;
+
+            const itemsContainer = document.getElementById('current-items-container');
+            itemsContainer.innerHTML = '';
+            if (group.items && group.items.length > 0) {
+                group.items.forEach(item => {
+                    const tag = document.createElement('span');
+                    tag.className = 'bg-white border border-pink-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-700 shadow-sm flex items-center gap-1.5';
+                    tag.innerHTML = `<span>${item.name}</span><span class="bg-pink-100 text-pink-600 px-1.5 py-0.5 rounded-lg text-[10px] font-bold">${item.count}人</span>`;
+                    itemsContainer.appendChild(tag);
+                });
+            } else {
+                itemsContainer.innerHTML = '<span class="text-xs text-slate-400">目前沒有項目，請點擊編輯按鈕新增。</span>';
+            }
+        }
+
+        function renderParticipantsList() {
+            const container = document.getElementById('participants-container');
+            container.innerHTML = '';
+            document.getElementById('participant-count').innerText = `已同步 ${participantsData.length} 位`;
+
+            participantsData.forEach(p => {
+                const chip = document.createElement('div');
+                chip.className = 'bg-pink-50/60 border border-pink-200 text-pink-700 px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-2 shadow-sm';
+                chip.innerHTML = `
+                    <span>${p.name}</span>
+                    <button onclick="deleteParticipant('${p.id}')" class="hover:text-red-400 font-bold">&times;</button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        window.addParticipant = async function() {
+            if (!currentUser) return;
+            const inputEl = document.getElementById('new-participant-input');
+            const val = inputEl.value.trim();
+            if (!val) return;
+
+            const names = val.split(/[\n,，]+/).map(n => n.trim()).filter(n => n);
+            const participantsRef = collection(db, 'artifacts', appId, 'public', 'data', 'draw_participants');
+            
+            for (let name of names) {
+                await addDoc(participantsRef, { name });
+            }
+            inputEl.value = '';
+        }
+
+        window.deleteParticipant = async function(id) {
+            if (!currentUser) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'draw_participants', id));
+        }
+
+        window.clearParticipants = async function() {
+            if (!currentUser || participantsData.length === 0) return;
+            for (let p of participantsData) {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'draw_participants', p.id));
+            }
+        }
+
+        window.openNewGroupModal = function() {
+            document.getElementById('modal-title').innerText = '新增抽籤組合';
+            document.getElementById('modal-group-id').value = '';
+            document.getElementById('group-name-input').value = '';
+            document.getElementById('group-items-input').value = '班長 (1)\n風紀股長 (1)\n衛生股長 (1)\n作業長 (1)';
+            document.getElementById('group-modal').classList.remove('hidden');
+        }
+
+        window.editCurrentGroup = function() {
+            const group = groupsData.find(g => g.id === currentGroupId);
+            if (!group) return;
+            document.getElementById('modal-title').innerText = '編輯抽籤組合';
+            document.getElementById('modal-group-id').value = group.id;
+            document.getElementById('group-name-input').value = group.name;
+            
+            const formattedItems = group.items ? group.items.map(i => `${i.name} (${i.count})`).join('\n') : '';
+            document.getElementById('group-items-input').value = formattedItems;
+            document.getElementById('group-modal').classList.remove('hidden');
+        }
+
+        window.closeGroupModal = function() {
+            document.getElementById('group-modal').classList.add('hidden');
+        }
+
+        window.saveGroup = async function() {
+            if (!currentUser) return;
+            const id = document.getElementById('modal-group-id').value;
+            const name = document.getElementById('group-name-input').value.trim();
+            const rawText = document.getElementById('group-items-input').value.trim();
+
+            if (!name) {
+                window.showAlert('提示', '請輸入組合名稱');
+                return;
+            }
+
+            const lines = rawText.split(/[\n]+/).map(l => l.trim()).filter(l => l);
+            const items = [];
+
+            for (let line of lines) {
+                const match = line.match(/^(.*?)\s*\((\d+)\)\s*$/);
+                if (match) {
+                    items.push({ name: match[1].trim(), count: parseInt(match[2]) });
+                } else {
+                    items.push({ name: line, count: 1 });
+                }
+            }
+
+            if (items.length === 0) {
+                window.showAlert('提示', '請至少輸入一個抽籤項目');
+                return;
+            }
+
+            if (id) {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'draw_groups', id), { name, items });
+            } else {
+                const docRef = await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'draw_groups'), { name, items });
+                currentGroupId = docRef.id;
+            }
+            closeGroupModal();
+        }
+
+        window.deleteCurrentGroup = async function() {
+            if (!currentUser || !currentGroupId) return;
+            if (groupsData.length <= 1) {
+                window.showAlert('提示', '至少需保留一個抽籤組合');
+                return;
+            }
+            await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'draw_groups', currentGroupId));
+            currentGroupId = groupsData.filter(g => g.id !== currentGroupId)[0].id;
+        }
+
+        // 執行抽籤核心 (支援非重複中獎邏輯)
+        window.startDraw = function() {
+            const group = groupsData.find(g => g.id === currentGroupId);
+            if (!group || !group.items || group.items.length === 0) {
+                window.showAlert('提示', '目前組合沒有可抽的項目！');
+                return;
+            }
+
+            const itemTextEl = document.getElementById('spinner-item-text');
+            const nameTextEl = document.getElementById('spinner-name-text');
+            const drawBtn = document.getElementById('draw-btn');
+
+            drawBtn.disabled = true;
+            drawBtn.classList.add('opacity-50');
+
+            let counter = 0;
+            const maxCount = 12;
+            const allItems = group.items;
+            const allNames = participantsData.length > 0 ? participantsData.map(p => p.name) : ["小美", "大明", "志明"];
+
+            const interval = setInterval(() => {
+                counter++;
+                const randomItem = allItems[Math.floor(Math.random() * allItems.length)].name;
+                const randomName = allNames[Math.floor(Math.random() * allNames.length)];
+                
+                itemTextEl.innerText = `🎰 抽獎中: ${randomItem}`;
+                nameTextEl.innerText = randomName;
+                
+                const stage = document.getElementById('slot-spinner-stage');
+                stage.classList.add('slot-animation');
+                setTimeout(() => stage.classList.remove('slot-animation'), 250);
+
+                if (counter >= maxCount) {
+                    clearInterval(interval);
+                    executeSingleItemDraw(group, drawBtn, itemTextEl, nameTextEl);
+                }
+            }, 100);
+        }
+
+        async function executeSingleItemDraw(group, drawBtn, itemTextEl, nameTextEl) {
+            drawBtn.disabled = false;
+            drawBtn.classList.remove('opacity-50');
+
+            const alreadyDrawnItemNames = latestResults.map(r => r.item);
+            const remainingItems = group.items.filter(i => !alreadyDrawnItemNames.includes(i.name));
+
+            if (remainingItems.length === 0) {
+                window.showAlert('提示', '此組合的所有項目已經全數抽完囉！');
+                itemTextEl.innerText = '✨ 抽獎完畢 ✨';
+                nameTextEl.innerText = '所有項目已全數抽出！';
+                return;
+            }
+
+            const chosenItem = remainingItems[Math.floor(Math.random() * remainingItems.length)];
+            
+            const alreadyAssignedNames = [];
+            latestResults.forEach(r => r.names.forEach(n => alreadyAssignedNames.push(n)));
+
+            let availableNames = participantsData.filter(p => !alreadyAssignedNames.includes(p.name)).map(p => p.name);
+            
+            if (availableNames.length < chosenItem.count) {
+                availableNames = participantsData.map(p => p.name);
+            }
+
+            const assignedNames = [];
+            for (let i = 0; i < chosenItem.count; i++) {
+                if (availableNames.length > 0) {
+                    const nameIndex = Math.floor(Math.random() * availableNames.length);
+                    assignedNames.push(availableNames.splice(nameIndex, 1)[0]);
+                } else {
+                    assignedNames.push(`幸運得主 ${i + 1}`);
+                }
+            }
+
+            const newResult = {
+                id: Math.random().toString(36).substr(2, 9),
+                names: assignedNames,
+                item: chosenItem.name
+            };
+
+            latestResults.push(newResult);
+            itemTextEl.innerText = `🌸 恭喜抽中：${chosenItem.name} 🌸`;
+            nameTextEl.innerText = assignedNames.join('、');
+            
+            document.getElementById('export-btn').classList.remove('hidden');
+            renderResults(latestResults);
+
+            // 自動儲存至雲端歷史紀錄
+            await saveHistoryToCloud(group.name, chosenItem.name, assignedNames);
+        }
+
+        async function saveHistoryToCloud(groupName, itemName, names) {
+            if (!currentUser) return;
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'draw_history'), {
+                    groupName,
+                    item: itemName,
+                    names,
+                    timestamp: new Date().toLocaleString()
+                });
+            } catch (err) {
+                console.error("Failed to save history:", err);
+            }
+        }
+
+        function renderResults(results) {
+            const resultContainer = document.getElementById('result-container');
+            resultContainer.innerHTML = '';
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'w-full space-y-3';
+
+            const summaryHeader = document.createElement('div');
+            summaryHeader.className = 'text-xs font-semibold text-slate-500 mb-2 flex justify-between items-center';
+            summaryHeader.innerHTML = `<span>本輪已抽項目（不重複中獎）：</span>`;
+            wrapper.appendChild(summaryHeader);
+
+            const grid = document.createElement('div');
+            grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-h-56 overflow-y-auto pr-1';
+
+            results.forEach((res, index) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border border-pink-100 p-3.5 rounded-2xl shadow-sm flex items-center justify-between';
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 truncate">
+                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-pink-400 to-purple-400 text-white flex-shrink-0 flex items-center justify-center font-black text-sm shadow-md">
+                            ${index + 1}
+                        </div>
+                        <div class="truncate">
+                            <div class="font-bold text-pink-600 text-sm truncate">${res.item}</div>
+                            <div class="text-xs text-purple-600 font-medium truncate">獲得者: ${res.names.join(', ')}</div>
+                        </div>
+                    </div>
+                    <button onclick="redrawSingle('${res.id}')" class="flex-shrink-0 text-xs bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 px-2.5 py-1.5 rounded-xl transition font-bold shadow-sm ml-2">
+                        重抽
+                    </button>
+                `;
+                grid.appendChild(card);
+            });
+
+            wrapper.appendChild(grid);
+            resultContainer.appendChild(wrapper);
+        }
+
+        function renderCloudHistory() {
+            const container = document.getElementById('cloud-history-container');
+            const countEl = document.getElementById('cloud-history-count');
+            container.innerHTML = '';
+            countEl.innerText = `${historyData.length} 筆紀錄`;
+
+            if (historyData.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-400 text-center py-2">尚無雲端儲存的紀錄</div>';
+                return;
+            }
+
+            // 依據陣列倒序顯示最新紀錄
+            [...historyData].reverse().forEach(h => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'bg-white border border-pink-100 p-2.5 rounded-xl text-xs flex justify-between items-center shadow-sm';
+                itemDiv.innerHTML = `
+                    <div class="truncate pr-2">
+                        <span class="font-bold text-pink-600">[${h.groupName}]</span>
+                        <span class="font-bold text-slate-700 ml-1">${h.item}</span> ➔ 
+                        <span class="text-purple-600 font-medium">${h.names ? h.names.join(', ') : ''}</span>
+                        <div class="text-[10px] text-slate-400">${h.timestamp || ''}</div>
+                    </div>
+                    <button onclick="deleteCloudHistory('${h.id}')" class="text-slate-400 hover:text-red-400 p-1 font-bold text-sm flex-shrink-0" title="刪除此紀錄">&times;</button>
+                `;
+                container.appendChild(itemDiv);
+            });
+        }
+
+        window.deleteCloudHistory = async function(id) {
+            if (!currentUser) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'draw_history', id));
+            } catch (err) {
+                console.error("Failed to delete history item:", err);
+            }
+        }
+
+        window.redrawSingle = function(resultId) {
+            const group = groupsData.find(g => g.id === currentGroupId);
+            if (!group || !group.items) return;
+
+            const targetResult = latestResults.find(r => r.id === resultId);
+            if (!targetResult) return;
+
+            const targetItemObj = group.items.find(i => i.name === targetResult.item);
+            if (!targetItemObj) return;
+
+            const otherAssignedNames = [];
+            latestResults.forEach(r => {
+                if (r.id !== resultId) {
+                    r.names.forEach(n => otherAssignedNames.push(n));
+                }
+            });
+
+            let availableNames = participantsData.map(p => p.name).filter(n => !otherAssignedNames.includes(n));
+            if (availableNames.length < targetItemObj.count) {
+                availableNames = participantsData.map(p => p.name);
+            }
+
+            const assignedNames = [];
+            for (let i = 0; i < targetItemObj.count; i++) {
+                if (availableNames.length > 0) {
+                    const nameIndex = Math.floor(Math.random() * availableNames.length);
+                    assignedNames.push(availableNames.splice(nameIndex, 1)[0]);
+                } else {
+                    assignedNames.push(`幸運得主 ${i + 1}`);
+                }
+            }
+
+            targetResult.names = assignedNames;
+            renderResults(latestResults);
+        }
+
+        window.clearHistory = function() {
+            latestResults = [];
+            document.getElementById('export-btn').classList.add('hidden');
+            document.getElementById('spinner-item-text').innerText = '準備就緒';
+            document.getElementById('spinner-name-text').innerText = '✨ 點擊按鈕開始轉動 ✨';
+            document.getElementById('result-container').innerHTML = `<p>尚無本輪開獎紀錄，請點擊上方按鈕開始！</p>`;
+        }
+
+        window.onload = function() {
+            initAuth();
+        };
+    </script>
+</body>
+</html>
